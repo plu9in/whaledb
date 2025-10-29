@@ -25,7 +25,53 @@ func (lx *Lexer) TrimLeft(cutset string) {
 	lx.input = strings.TrimLeft(lx.input, cutset)
 }
 
-func (lx *Lexer) readPunctuation() string {
+func (lx *Lexer) Next() Token {
+	lx.TrimLeft(" \t\r\n")
+
+	if lx.input == "" {
+		return Token{Kind: EOF, Text: ""}
+	}
+
+	if tok, ok := lx.readNumberToken(); ok {
+		return tok
+	}
+
+	if tok, ok := lx.readStringToken(); ok {
+		return tok
+	}
+
+	if op := lx.readOperator(); op != "" {
+		// ⬇️ lookup comme pour les mots-clés
+		if kind, ok := lx.dialect.OperatorKinds()[op]; ok {
+			return Token{Kind: kind, Text: op}
+		}
+		// fallback si non mappé (optionnel : crée un TokenKind OP/UNKNOWN)
+		return Token{Kind: IDENT, Text: op}
+	}
+
+	if op := lx.readPunctuator(); op != "" {
+		// ⬇️ lookup comme pour les mots-clés
+		if kind, ok := lx.dialect.PunctuatorKinds()[op]; ok {
+			return Token{Kind: kind, Text: op}
+		}
+		// fallback si non mappé (optionnel : crée un TokenKind OP/UNKNOWN)
+		return Token{Kind: IDENT, Text: op}
+	}
+
+	if lx.input == "" {
+		return Token{Kind: EOF, Text: ""}
+	}
+
+	word := lx.readWord(lx.input)
+	// Mapping mots-clés via le dialecte (OCP-ready)
+	if kwKind, ok := lx.dialect.Keywords()[strings.ToUpper(word)]; ok {
+		return Token{Kind: kwKind, Text: strings.ToUpper(word)}
+	}
+
+	return Token{Kind: IDENT, Text: word}
+}
+
+func (lx *Lexer) readPunctuator() string {
 	if len(lx.input) == 0 {
 		return ""
 	}
@@ -51,52 +97,6 @@ func (lx *Lexer) readOperator() string {
 		}
 	}
 	return ""
-}
-
-func (lx *Lexer) Next() Token {
-	lx.TrimLeft(" \t\r\n")
-
-	if lx.input == "" {
-		return Token{Kind: EOF, Text: ""}
-	}
-
-	if tok, ok := lx.readNumberToken(); ok {
-		return tok
-	}
-
-	if tok, ok := lx.readStringToken(); ok {
-		return tok
-	}
-
-	if op := lx.readOperator(); op != "" {
-		// ⬇️ lookup comme pour les mots-clés
-		if kind, ok := lx.dialect.OperatorKinds()[op]; ok {
-			return Token{Kind: kind, Text: op}
-		}
-		// fallback si non mappé (optionnel : crée un TokenKind OP/UNKNOWN)
-		return Token{Kind: IDENT, Text: op}
-	}
-
-	if op := lx.readPunctuation(); op != "" {
-		// ⬇️ lookup comme pour les mots-clés
-		if kind, ok := lx.dialect.PunctuatorKinds()[op]; ok {
-			return Token{Kind: kind, Text: op}
-		}
-		// fallback si non mappé (optionnel : crée un TokenKind OP/UNKNOWN)
-		return Token{Kind: IDENT, Text: op}
-	}
-
-	if lx.input == "" {
-		return Token{Kind: EOF, Text: ""}
-	}
-
-	word := lx.readWord(lx.input)
-	// Mapping mots-clés via le dialecte (OCP-ready)
-	if kwKind, ok := lx.dialect.Keywords()[strings.ToUpper(word)]; ok {
-		return Token{Kind: kwKind, Text: strings.ToUpper(word)}
-	}
-
-	return Token{Kind: IDENT, Text: word}
 }
 
 func (lx *Lexer) readNumberToken() (Token, bool) {

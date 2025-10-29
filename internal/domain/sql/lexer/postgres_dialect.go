@@ -6,9 +6,10 @@ type PostgresDialect struct{}
 
 func (PostgresDialect) Keywords() map[string]TokenKind {
 	return map[string]TokenKind{
-		"SELECT": KW_SELECT,
-		"FROM":   KW_FROM,
 		"AS":     KW_AS,
+		"FROM":   KW_FROM,
+		"SELECT": KW_SELECT,
+		"WITH":   KW_WITH,
 	}
 }
 
@@ -29,6 +30,7 @@ func (PostgresDialect) Operators() []string {
 		"->", "#>", "@>", "<@", // JSON/JSONB et tableaux (contenance)
 		"&&",       // overlap (plages, tableaux, géométrie)
 		"||",       // concat chaîne / JSON
+		"::",       // cast
 		"<<", ">>", // décalage bitwise ou géométrie
 		"<=", ">=", "<>", "!=", // comparaisons
 		"~*", "!~", // regex (case-insensitive, négatif)
