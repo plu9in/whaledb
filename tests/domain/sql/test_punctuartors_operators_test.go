@@ -9,7 +9,7 @@ import (
 
 func Test_Punctuators_And_Operators(t *testing.T) {
 	d := lexer.PostgresDialect{}
-	lx := lexer.NewLexerWithDialect("a[1:3]::int, b||'x';", d)
+	lx := lexer.NewLexerWithDialect("a[1:3]::int, --ceci est un commentaire\n b--ceci est un commentaire\n/*ceci est un commentaire*/||'WITH\\'';", d)
 
 	// a
 	tok := lx.Next()
@@ -45,9 +45,10 @@ func Test_Punctuators_And_Operators(t *testing.T) {
 	// ||
 	tok = lx.Next()
 	require.Equal(t, lexer.OP_CONCAT, tok.Kind)
-	// 'x'
+	// 'WITH'
 	tok = lx.Next()
 	require.Equal(t, lexer.TK_STRING, tok.Kind)
+	require.Equal(t, "'WITH\\''", tok.Text)
 	// ;
 	tok = lx.Next()
 	require.Equal(t, lexer.TK_SEMICOLON, tok.Kind)

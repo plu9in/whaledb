@@ -2,19 +2,20 @@ package sql
 
 import (
 	"testing"
-	. "github.com/plu9in/whaledb/internal/domain/sql/lexer"
+
+	lex "github.com/plu9in/whaledb/internal/domain/sql/lexer"
 )
 
 func Test_String_SimpleQuotes_OK(t *testing.T) {
-	d := PostgresDialect{}
-	lx := NewLexerWithDialect("'It''s ok' FROM", d)
+	d := lex.PostgresDialect{}
+	lx := lex.NewLexerWithDialect("'It\\'s ok' FROM", d)
 
 	tok := lx.Next()
-	if tok.Kind != TK_STRING || tok.Text != "It's ok" {
+	if tok.Kind != lex.TK_STRING || tok.Text != "'It\\'s ok'" {
 		t.Fatalf("expected TK_STRING \"It's ok\", got kind=%v text=%q", tok.Kind, tok.Text)
 	}
 	tok = lx.Next()
-	if tok.Kind != KW_FROM {
+	if tok.Kind != lex.KW_FROM {
 		t.Fatalf("expected KW_FROM after string, got %v", tok.Kind)
 	}
 }

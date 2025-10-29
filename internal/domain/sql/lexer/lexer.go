@@ -25,11 +25,57 @@ func (lx *Lexer) TrimLeft(cutset string) {
 	lx.input = strings.TrimLeft(lx.input, cutset)
 }
 
+func (lx *Lexer) readOneLineComment() Token {
+	// Handle SQL comments starting with --
+	if strings.HasPrefix(lx.input, "--") {
+		i := strings.Index(lx.input, "\n")
+		println("one line comment: ", i)
+		if i == -1 {
+			// Comment goes until the end of input
+			lx.input = ""
+			return Token{Kind: EOF, Text: ""}
+		}
+		// Skip the comment and continue
+		lx.input = lx.input[i+1:]
+	}
+	return Token{}
+}
+
+func (lx *Lexer) readMultiLineComment() Token {
+	// Handle SQL comments starting with /* and ending with */
+	if strings.HasPrefix(lx.input, "/*") {
+		endIdx := strings.Index(lx.input, "*/")
+		println("multilines comment: ", endIdx)
+		if endIdx == -1 {
+			// Unterminated comment, consume the rest of the input
+			lx.input = ""
+			return Token{Kind: EOF, Text: ""}
+		}
+		// Skip the comment and continue
+		lx.input = lx.input[endIdx+2:]
+	}
+	return Token{}
+}
+
 func (lx *Lexer) Next() Token {
 	lx.TrimLeft(" \t\r\n")
 
-	if lx.input == "" {
-		return Token{Kind: EOF, Text: ""}
+	for strings.HasPrefix(lx.input, "--") || strings.HasPrefix(lx.input, "/*") {
+		if lx.input == "" {
+			return Token{Kind: EOF, Text: ""}
+		}
+
+		if strings.HasPrefix(lx.input, "--") {
+			if commentTok := lx.readOneLineComment(); commentTok.Kind != 0 {
+				return commentTok
+			}
+		} else if strings.HasPrefix(lx.input, "/*") {
+			if commentTok := lx.readMultiLineComment(); commentTok.Kind != 0 {
+				return commentTok
+			}
+		}
+
+		lx.TrimLeft(" \t\r\n")
 	}
 
 	if tok, ok := lx.readNumberToken(); ok {
@@ -43,6 +89,10 @@ func (lx *Lexer) Next() Token {
 	if op := lx.readOperator(); op != "" {
 		// ⬇️ lookup comme pour les mots-clés
 		if kind, ok := lx.dialect.OperatorKinds()[op]; ok {
+			if strings.HasPrefix(op, "--") || strings.HasPrefix(op, "/*") {
+				// Si c’est un commentaire, on l’ignore et on continue
+				return lx.Next()
+			}
 			return Token{Kind: kind, Text: op}
 		}
 		// fallback si non mappé (optionnel : crée un TokenKind OP/UNKNOWN)
@@ -131,6 +181,11 @@ func (lx *Lexer) readStringToken() (Token, bool) {
 	for i < len(lx.input) {
 		r, size := utf8.DecodeRuneInString(lx.input[i:])
 		if byte(r) == quoteChar {
+			// Check if the quoteChar is escaped
+			if i > 0 && lx.input[i-1] == '\\' {
+				i += size
+				continue
+			}
 			// fin de chaîne
 			strText := lx.input[:i+size]
 			lx.input = lx.input[i+size:]
